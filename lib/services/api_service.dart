@@ -6,6 +6,7 @@ import '../services/database_service.dart';
 class ApiService {
   static const String baseUrl = 'https://www.takeawayordering.com/appserver/appserver.php';
   final _databaseService = DatabaseService();
+  List<Order> _previousOrders = []; // Track previous orders for comparison
 
   Future<String?> _getEmployeePhone() async => await _databaseService.getEmployeePhone();
   Future<String?> _getEmployeePin() async => await _databaseService.getEmployeePin();
@@ -46,16 +47,10 @@ class ApiService {
 
       final url = '$baseUrl?tag=todaysorders&employee_phone=$employeePhone&employee_pin=$employeePin&shop_id=$shopId';
       final response = await http.get(Uri.parse(url));
-      print('Bodyyyyyyy: ${response.body}');
+      print('Body: ${response.body}');
 
       _logResponse('fetchOrders', response);
       final jsonResponse = jsonDecode(response.body);
-        jsonResponse['tabledetails']?.forEach((orderId, orderDetails) {
-          print('Order ID: $orderId');
-          orderDetails.forEach((key, value) {
-            print('$key: $value');
-          });
-        });
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -107,6 +102,29 @@ class ApiService {
         success: false,
         message: 'Error fetching order details: $e',
       );
+    }
+  }
+
+  Future<List<Order>> fetchNewOrders() async {
+    try {
+      final currentOrdersResponse = await fetchOrders();
+
+      // Assuming OrderResponse contains a map of orderId and Order objects.
+      final currentOrders = currentOrdersResponse.orders.values.toList();
+
+      // Compare the previous orders with the current orders to find new ones
+      final newOrders = currentOrders.where((order) {
+        return !_previousOrders.any((prevOrder) => prevOrder.orderId == order.orderId);
+      }).toList();
+
+      // Update previous orders to the current orders for future comparison
+      _previousOrders = currentOrders;
+
+      print('New orders found: ${newOrders.length}');
+      return newOrders;
+    } catch (e) {
+      _logError('fetchNewOrders', e);
+      return [];
     }
   }
 }

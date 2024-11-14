@@ -1,8 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../models/order.dart';
 import '../services/api_service.dart';
 import '../services/database_service.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 class OrdersScreen extends StatefulWidget {
   final String? shopId;
@@ -22,6 +29,7 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   final ApiService _apiService = ApiService();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final DatabaseService _databaseService = DatabaseService();
   Timer? _timer;
   List<Order> _orders = [];
@@ -30,13 +38,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String? _shopId;
   String? _employeePhone;
   String? _employeePin;
-  final Map<String, bool> _printStatus = {}; // Store print status of each order
+  final Map<String, bool> _printStatus = {};
 
   @override
   void initState() {
     super.initState();
+    _initNotifications();
     _initCredentials();
     _startPeriodicFetch();
+  }
+
+  Future<void> _initNotifications() async {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initializationSettings = InitializationSettings(android: androidSettings);
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
   Future<void> _initCredentials() async {
@@ -73,12 +88,25 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void _startPeriodicFetch() {
-    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 15), (timer) {
       _fetchOrders();
     });
   }
 
-  
+  Future<void> _playNotificationSound() async {
+    try {
+      final byteData = await rootBundle.load('assets/sounds/beep.mp3');
+      final audioBytes = byteData.buffer.asUint8List();
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/notification.mp3');
+      await tempFile.writeAsBytes(audioBytes, flush: true);
+
+      await _audioPlayer.setFilePath(tempFile.path);
+      _audioPlayer.play();
+    } catch (e) {
+      print("Error loading or playing sound: $e");
+    }
+  }
 
   Future<void> _fetchOrders() async {
     setState(() {
@@ -91,19 +119,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
       if (!mounted) return;
 
-      // Populate print status directly from the `orderPrinted` field in the API response
-      for (var order in response.orders.values) {
-        bool isPrinted = order.orderPrinted != "0";
+      final newOrders = response.orders.values.toList();
+
+      // Trigger notification and sound for each unprinted order
+      for (var order in newOrders) {
+        final isPrinted = order.orderPrinted != "0";
         _printStatus[order.orderId] = isPrinted;
 
-        // Play beep sound if order is not printed
         if (!isPrinted) {
-          await _playBeepSound();
+          await _playNotificationSound();
+          _showOrderNotification(order, isPrinted);
         }
       }
 
       setState(() {
-        _orders = response.orders.values.toList();
+        _orders = newOrders;
         _isLoading = false;
       });
     } catch (e) {
@@ -114,18 +144,31 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  Future<void> _playBeepSound() async {
-    try {
-    } catch (e) {
-      print("Error playing sound: $e");
-    }
+  Future<void> _showOrderNotification(Order order, bool isPrinted) async {
+    final notificationTitle = isPrinted
+        ? 'New Order'
+        : 'Unprinted Order #${order.orderId} is ready.';
+
+    await flutterLocalNotificationsPlugin.show(
+      order.orderId.hashCode,
+      notificationTitle,
+      'Order #${order.orderId} is ready.',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'order_channel',
+          'Order Notifications',
+          channelDescription: 'Notifications for new orders',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+    );
   }
-
-
 
   @override
   void dispose() {
     _timer?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -200,7 +243,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             shape: RoundedRectangleBorder(
               side: BorderSide(
-                color: isPrinted ? Colors.white : Colors.red, // Red if not printed, white if printed
+                color: isPrinted ? Colors.white : Colors.red,
                 width: 2,
               ),
               borderRadius: BorderRadius.circular(8),
@@ -230,7 +273,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
+       ),
+     );
+    }
+   } 

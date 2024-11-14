@@ -1,53 +1,61 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-
+import 'package:workmanager/workmanager.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/shop_id_screen.dart';
 import 'screens/orders_screen.dart';
 import 'screens/order_details_screen.dart';
 import 'models/order.dart';
+import 'services/api_service.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final ApiService _apiService = ApiService(); // Initialize ApiService
+
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    await checkForOrdersAndNotify();
+    return Future.value(true);
+  });
+}
+
+Future<void> checkForOrdersAndNotify() async {
+  // Fetch orders from ApiService
+  final response = await _apiService.fetchOrders(); // Using ApiService to fetch orders
+
+  if (response != null) {
+    for (var order in response.orders.values) {
+      if (order.orderPrinted != "0") {
+        await flutterLocalNotificationsPlugin.show(
+          order.orderId.hashCode,
+          'New Order',
+          'Order #${order.orderId} is ready.',
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'order_channel', // ID
+              'Order Notifications', // Name
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+          ),
+        );
+      }
+    }
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeService(); // Initialize background service
+
+  // Initialize WorkManager
+  Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+  Workmanager().registerPeriodicTask("1", "checkOrdersTask",
+      frequency: const Duration(minutes: 15)); // Adjust as needed
+
+  // Initialize flutter_local_notifications
+  var initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  var initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
   runApp(const MyApp());
-}
-
-Future<void> initializeService() async {
-  final service = FlutterBackgroundService();
-
-  await service.configure(
-    androidConfiguration: AndroidConfiguration(
-      onStart: onStart,
-      isForegroundMode: true,
-      autoStart: true,
-
-    ),
-    iosConfiguration: IosConfiguration(
-      autoStart: true,
-      onForeground: onStart,
-      onBackground: onIosBackground,
-    ),
-  );
-
-  service.startService();
-}
-
-bool onIosBackground(ServiceInstance service) {
-  WidgetsFlutterBinding.ensureInitialized();
-  return true;
-}
-
-void onStart(ServiceInstance service) {
-  if (service is AndroidServiceInstance) {
-    service.on('stopService').listen((event) {
-      service.stopSelf();
-    });
-  }
-
-  service.on('update').listen((event) {
-    print("Background service is running...");
-  });
 }
 
 class MyApp extends StatelessWidget {
