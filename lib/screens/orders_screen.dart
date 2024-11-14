@@ -121,7 +121,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
       final newOrders = response.orders.values.toList();
 
-      // Trigger notification and sound for each unprinted order
       for (var order in newOrders) {
         final isPrinted = order.orderPrinted != "0";
         _printStatus[order.orderId] = isPrinted;
@@ -188,21 +187,26 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_employeePin != null ? 'Orders - $_employeePin' : 'Orders'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      body: _buildBody(),
-    );
-  }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(_employeePin != null ? 'Orders - $_employeePin' : 'Orders'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: _fetchOrders, // Call _fetchOrders when reload button is pressed
+        ),
+        IconButton(
+          icon: const Icon(Icons.logout),
+          onPressed: _logout,
+        ),
+      ],
+    ),
+    body: _buildBody(),
+  );
+}
+
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -230,50 +234,100 @@ class _OrdersScreenState extends State<OrdersScreen> {
         child: Text('No orders found'),
       );
     }
+return RefreshIndicator(
+  onRefresh: _fetchOrders,
+  child: ListView.builder(
+    itemCount: _orders.length,
+    itemBuilder: (context, index) {
+      final order = _orders[index];
+      final isPrinted = _printStatus[order.orderId] ?? false;
 
-    return RefreshIndicator(
-      onRefresh: _fetchOrders,
-      child: ListView.builder(
-        itemCount: _orders.length,
-        itemBuilder: (context, index) {
-          final order = _orders[index];
-          final isPrinted = _printStatus[order.orderId] ?? false;
+      return Card(
+        color: isPrinted ? const Color(0xFF88C3CF) : Colors.orange[100], // Set to specified color for printed
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: isPrinted ? Colors.blue : Colors.red,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/order-details',
+              arguments: order,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.customerPhone,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          order.customerName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          order.email,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Total: €${order.total.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Address: ${order.customerAddress}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Delivery Charge: €${order.deliveryFee.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    Text(
+                      order.orderType, // Delivery type
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  ),
+);
 
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(
-              side: BorderSide(
-                color: isPrinted ? Colors.white : Colors.red,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ListTile(
-              leading: isPrinted
-                  ? null
-                  : Icon(Icons.circle, color: Colors.red, size: 12),
-              title: Text('Order #${order.orderId}'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Status: ${order.status}'),
-                  Text('Time: ${order.orderTime}'),
-                  Text('Customer: ${order.customerName}'),
-                  Text('Total: \$${order.total.toStringAsFixed(2)}'),
-                ],
-              ),
-              isThreeLine: true,
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  '/order-details',
-                  arguments: order,
-                );
-              },
-            ),
-          );
-        },
-       ),
-     );
-    }
-   } 
+
+  }
+}

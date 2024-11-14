@@ -10,7 +10,7 @@
 
     <!-- Application-level configurations -->
     <application
-        android:label="new_flutterbill_fixed"
+        android:label="RecieptPrinter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
