@@ -1,0 +1,39 @@
+name: flutterbill
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  blue_thermal_printer: ^1.2.3 # For Bluetooth printing
+  esc_pos_utils: ^1.1.0 # For creating and formatting receipt data
+  esc_pos_printer: ^4.0.4 # For USB printing
+  network_info_plus: ^4.1.0 # For network connectivity checks and network printer support
+  http: ^0.13.3 # For making HTTP requests to update print status
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  intl: ^0.18.1
+  collection: ^1.17.2
+  image: ^3.0.2 # Compatible version across thermal_printer and esc_pos_utils
+  android_intent_plus: ^2.0.2
+  flutter_background_service: ^5.0.10
+  just_audio: ^0.9.28
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.3
+
+flutter:
+  uses-material-design: true
+  assets:
+      - assets/sounds/beep.mp3
