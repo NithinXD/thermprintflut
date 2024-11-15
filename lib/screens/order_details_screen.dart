@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/printer_service.dart';
 import '../models/order.dart';
 import '../services/api_service.dart';
@@ -15,10 +16,9 @@ class OrderDetailsScreen extends StatefulWidget {
 }
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
-  final PrinterService _printerService = PrinterService();
   final ApiService _apiService = ApiService();
 
-  List<OrderDetail>? _orderDetails; // List to store fetched order details
+  List<OrderDetail>? _orderDetails;
   bool _isLoading = true;
   String? _error;
 
@@ -45,38 +45,22 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   void _printReceipt() async {
-  // Retrieve the shop ID
-  final shopId = await DatabaseService().getShopId();
+    const MethodChannel platform = MethodChannel('rawbt.intent.channel');
 
-  // Define URL for updating print status
-  final url = 'https://www.takeawayordering.com/appserver/appserver.php?'
-              'tag=updateprintstatus&'
-              'employee_phone=wingsbox&'
-              'employee_pin=2go2hell&'
-              'shop_id=$shopId&'
-              'order_id=${widget.order.orderId}';
+    if (_orderDetails == null) return;
 
-  try {
-    // Send request to update print status
-    final response = await http.get(Uri.parse(url));
+    String receiptData = _formatReceipt(widget.order);
 
-    if (response.statusCode == 200) {
-      print('Print status updated successfully.');
-    } else {
-      print('Failed to update print status. Status code: ${response.statusCode}');
+    try {
+      await platform.invokeMethod('sendToRawBT', <String, dynamic>{
+        'text': receiptData,
+        'type': 'text/plain',
+      });
+      print('Print sent to RawBT');
+    } on PlatformException catch (e) {
+      print('Failed to print: ${e.message}');
     }
-  } catch (e) {
-    print('Error updating print status: $e');
   }
-
-  // Check if order details exist
-  if (_orderDetails == null) return;
-
-  // Format and print the receipt
-  String receiptData = _formatReceipt(widget.order);
-  await _printerService.printReceipt(receiptData);
-}
-
 
   String _formatReceipt(Order order) {
     String receipt = '';
@@ -90,22 +74,25 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
     for (var item in _orderDetails ?? []) {
       receipt += '${item.quantity}x ${item.itemName} - €${(item.price * item.quantity).toStringAsFixed(2)}\n';
+
       if (item.extras.isNotEmpty) {
         for (var extra in item.extras) {
           receipt += '  + $extra\n';
         }
       }
+
       if (item.notes.isNotEmpty) {
         receipt += '  Note: ${item.notes}\n';
       }
       receipt += '\n';
     }
 
-    receipt += '--------------------------------\n';
-    receipt += 'Total: €${order.total.toStringAsFixed(2)}\n';
-    receipt += 'Thank You!\n';
-    return receipt;
-  }
+  receipt += '--------------------------------\n';
+  receipt += 'Total: €${order.total.toStringAsFixed(2)}\n';
+  receipt += 'Thank You!\n';
+  return receipt;
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -140,116 +127,135 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       ),
     );
   }
-Widget _buildOrderInfo() {
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Heading for Order Details
-          Text(
-            'Order Details',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8), // Add some spacing below the heading
 
-          // Display shop details
-          Text('Shop ID: ${widget.order.shopId}'),
-          Text('Shop Address: ${widget.order.shopAddress}'),
-Text('Phone: ${widget.order.shopTelephone.replaceFirst(RegExp(r'^0'), '')}', // Removes the leading 0 if it exists
- ),          const Divider(),
-
-          // Display customer details
-          Text(
-            '${widget.order.customerName}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Text('${widget.order.customerAddress}'),
-          const Divider(),
-          Text('Order Type: ${widget.order.orderType}'),
-          Text('Payment: ${widget.order.paymentType}'),
-        ],
+  Widget _buildOrderInfo() {
+    String formattedPhone = widget.order.customerPhone.replaceFirst(RegExp(r'^0'), '');
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
-    ),
-  );
-}
-
-
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order Details',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Order ID: ${widget.order.orderId}',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(),
+            Text('Shop ID: ${widget.order.shopId}'),
+            const SizedBox(height: 8),
+            Text(
+              '${widget.order.customerName}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            Text(formattedPhone),
+            Text('${widget.order.customerAddress}'),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Order Type:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(widget.order.orderType),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Payment:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(widget.order.paymentType),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildOrderItems() {
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('ITEMS', style: TextStyle(fontWeight: FontWeight.bold)),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _orderDetails?.length ?? 0,
-            itemBuilder: (context, index) {
-              final item = _orderDetails![index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        '${item.quantity} x ${item.itemName}',
-                        softWrap: true,
-                        maxLines: 2, // Allowing two lines for long item names
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text('€${(item.price * item.quantity).toStringAsFixed(2)}'),
-                  ],
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Sub Total:'),
-              Text('€${widget.order.total.toStringAsFixed(2)}'),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Delivery Charge:'),
-              Text('€${widget.order.deliveryFee.toStringAsFixed(2)}'),
-            ],
-          ),
-          const Divider(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Order Total:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(
-                '€${(widget.order.total + widget.order.deliveryFee).toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              'Thank you for your custom.',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ),
-        ],
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
-    ),
-  );
-}
-
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Items', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _orderDetails?.length ?? 0,
+              itemBuilder: (context, index) {
+                final item = _orderDetails![index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${item.quantity} x ${item.itemName}',
+                          softWrap: true,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text('€${(item.price * item.quantity).toStringAsFixed(2)}'),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Sub Total:'),
+                Text('€${widget.order.total.toStringAsFixed(2)}'),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Delivery Charge:'),
+                Text('€${widget.order.deliveryFee.toStringAsFixed(2)}'),
+              ],
+            ),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Order Total:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  '€${(widget.order.total + widget.order.deliveryFee).toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                'Thank you for your custom.',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

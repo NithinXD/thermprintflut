@@ -124,21 +124,26 @@ class OrderDetail {
   final String itemName;
   final int quantity;
   final double price;
-  final String description;
+  final List<String> extras; // Assuming extras is a list of strings
+  final String notes;
 
   OrderDetail({
     required this.itemName,
     required this.quantity,
     required this.price,
-    required this.description,
+    this.extras = const [],
+    this.notes = '',
   });
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
     return OrderDetail(
       itemName: json['pd_name'] ?? '',
-      quantity: int.tryParse(json['od_qty'] ?? '0') ?? 0,
-      price: double.tryParse(json['pd_order_price'] ?? '0') ?? 0.0,
-      description: json['pd_description'] ?? '',
+      quantity: int.tryParse(json['od_qty']?.toString() ?? '0') ?? 0,
+      price: double.tryParse(json['pd_order_price']?.toString() ?? '0') ?? 0.0,
+      extras: json['extras'] != null
+          ? List<String>.from(json['extras'])
+          : const [],
+      notes: json['notes'] ?? '',
     );
   }
 }

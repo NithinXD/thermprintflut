@@ -22,7 +22,7 @@ dependencies:
   intl: ^0.18.1
   collection: ^1.17.2
   image: ^3.0.2 # Compatible version across thermal_printer and esc_pos_utils
-  android_intent_plus: ^2.0.2
+  android_intent_plus: ^5.2.0
   flutter_background_service: ^5.0.10
   just_audio: ^0.9.28
   workmanager: ^0.4.1
