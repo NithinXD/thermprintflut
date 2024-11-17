@@ -8,6 +8,9 @@ import 'dart:io';
 import '../models/order.dart';
 import '../services/api_service.dart';
 import '../services/database_service.dart';
+import 'ReportScreen.dart'; 
+import 'ZonesScreen.dart'; 
+import '../services/printer_service.dart'; // Import PrinterService
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -31,6 +34,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   final ApiService _apiService = ApiService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final DatabaseService _databaseService = DatabaseService();
+  final PrinterService _printerService = PrinterService(); // PrinterService instance
+
   Timer? _timer;
   List<Order> _orders = [];
   bool _isLoading = true;
@@ -46,6 +51,28 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _initNotifications();
     _initCredentials();
     _startPeriodicFetch();
+  }
+
+  Future<void> _printOrder(Order order) async {
+    try {
+      setState(() {
+        _printStatus[order.orderId] = true; // Mark as printed optimistically
+      });
+
+      await _printerService.fetchAndPrintReceipt(order);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order #${order.orderId} sent to printer.')),
+      );
+    } catch (e) {
+      setState(() {
+        _printStatus[order.orderId] = false; // Revert status on failure
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to print order #${order.orderId}: $e')),
+      );
+    }
   }
 
   Future<void> _initNotifications() async {
@@ -195,7 +222,7 @@ Widget build(BuildContext context) {
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
-          onPressed: _fetchOrders, // Call _fetchOrders when reload button is pressed
+          onPressed: _fetchOrders,
         ),
         IconButton(
           icon: const Icon(Icons.logout),
@@ -204,10 +231,59 @@ Widget build(BuildContext context) {
       ],
     ),
     body: _buildBody(),
+    bottomNavigationBar: BottomNavigationBar(
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.analytics),
+          label: 'Report',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.map),
+          label: 'Zones',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.receipt),
+          label: 'Orders',
+        ),
+      ],
+      onTap: (int index) {
+        switch (index) {
+          case 0:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ReportScreen()),
+            );
+            break;
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ZonesScreen()),
+            );
+            break;
+          case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrdersScreen(
+              shopId: _shopId,
+              employeePhone: "wingsbox",
+              employeePin: "2go2hell",
+            ),
+          ),
+        );
+        break;
+    }
+      },
+      selectedItemColor: Colors.grey,
+      unselectedItemColor: Colors.grey,
+      showUnselectedLabels: true,
+    ),
   );
 }
 
 
+
+  @override
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -234,100 +310,111 @@ Widget build(BuildContext context) {
         child: Text('No orders found'),
       );
     }
-return RefreshIndicator(
-  onRefresh: _fetchOrders,
-  child: ListView.builder(
-    itemCount: _orders.length,
-    itemBuilder: (context, index) {
-      final order = _orders[index];
-      final isPrinted = _printStatus[order.orderId] ?? false;
 
-      return Card(
-        color: isPrinted ? const Color(0xFF88C3CF) : Colors.orange[100], // Set to specified color for printed
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-            color: isPrinted ? Colors.blue : Colors.red,
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: InkWell(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/order-details',
-              arguments: order,
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.customerPhone,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          order.customerName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          order.email,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Total: €${order.total.toStringAsFixed(2)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'Address: ${order.customerAddress}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Delivery Charge: €${order.deliveryFee.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    Text(
-                      order.orderType, // Delivery type
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+    return RefreshIndicator(
+      onRefresh: _fetchOrders,
+      child: ListView.builder(
+        itemCount: _orders.length,
+        itemBuilder: (context, index) {
+          final order = _orders[index];
+          final isPrinted = _printStatus[order.orderId] ?? false;
+
+          return Card(
+            color: isPrinted ? const Color(0xFF88C3CF) : Colors.orange[100], // Card color remains the same
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              side: BorderSide(
+                color: isPrinted ? Colors.blue : Colors.red,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-        ),
-      );
-    },
-  ),
-);
-
-
+            child: InkWell(
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  '/order-details',
+                  arguments: order,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              order.customerPhone,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              order.customerName,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              order.email,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Total: €${order.total.toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        'Address: ${order.customerAddress}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Delivery Charge: €${order.deliveryFee.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        Text(
+                          order.paymentType, // Delivery type
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16), // Add spacing before the button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center, // Center the button
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isPrinted ? Colors.green : Colors.red,
+                          ),
+                          onPressed: () => _printOrder(order), // Button is always enabled
+                          child: Text('Print'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

@@ -21,7 +21,7 @@ class ApiService {
   void _logResponse(String endpoint, http.Response response) {
     print('\nAPI Response from $endpoint:');
     print('Status Code: ${response.statusCode}');
-    print('Body: ${response.body}');
+    //print('Body: ${response.body}');
   }
 
   void _logError(String operation, dynamic error) {
@@ -47,7 +47,7 @@ class ApiService {
 
       final url = '$baseUrl?tag=todaysorders&employee_phone=$employeePhone&employee_pin=$employeePin&shop_id=$shopId';
       final response = await http.get(Uri.parse(url));
-      print('Body: ${response.body}');
+      //print('Body: ${response.body}');
 
       _logResponse('fetchOrders', response);
       final jsonResponse = jsonDecode(response.body);
