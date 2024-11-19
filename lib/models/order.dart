@@ -20,6 +20,9 @@ class Order {
   final String shopTelephone;
   final String paymentType;
 
+  // New field for discount
+  final double discount;
+
   Order({
     required this.orderId,
     required this.status,
@@ -34,13 +37,17 @@ class Order {
     required this.orderTotal,
     required this.email,
     required this.items,
-    required this.shopId,        // New field
-    required this.shopAddress,    // New field
-    required this.shopTelephone,  // New field
-    required this.paymentType,    // New field
+    required this.shopId,
+    required this.shopAddress,
+    required this.shopTelephone,
+    required this.paymentType,
+    required this.discount, // Add discount
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
+    double total = double.tryParse(json['od_total'] ?? '0') ?? 0.0;
+    double discount = double.tryParse(json['od_discount'] ?? '0') ?? 0.0;
+
     return Order(
       orderId: json['od_id'] ?? '',
       status: json['od_status'] ?? '',
@@ -48,11 +55,11 @@ class Order {
       customerName: '${json['od_shipping_first_name']} ${json['od_shipping_last_name']}',
       customerPhone: json['od_shipping_phone'] ?? '',
       customerAddress: '${json['od_shipping_address1']}, ${json['od_shipping_address2']}, ${json['od_shipping_city']}, ${json['od_shipping_state']}, ${json['od_shipping_postal_code']}',
-      total: double.tryParse(json['od_total'] ?? '0') ?? 0.0,
+      total: total,
       orderPrinted: json['order_printed'] ?? "0",
       orderType: json['od_delivery'] ?? '',
       deliveryFee: double.tryParse(json['od_delivery_charge'] ?? '0') ?? 0.0,
-      orderTotal: double.tryParse(json['od_total'] ?? '0') ?? 0.0,
+      orderTotal: total - discount,
       email: json['email'] ?? '',
       items: (json['items'] as List<dynamic>?)
           ?.map((item) => Item.fromJson(item))
@@ -61,13 +68,11 @@ class Order {
       shopAddress: '${json['housenameno']}, ${json['area']}, ${json['city']}, ${json['postcode']}, ${json['state']}, ${json['country']}',
       shopTelephone: json['telephone'] ?? '',
       paymentType: json['od_payment_type'] ?? '',
-<<<<<<< Updated upstream
-=======
       discount: double.tryParse(json['pd_discount_amount'] ?? '0') ?? 0.0,
->>>>>>> Stashed changes
     );
   }
 }
+
 
 
 class Item {

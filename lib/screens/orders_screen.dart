@@ -8,13 +8,10 @@ import 'dart:io';
 import '../models/order.dart';
 import '../services/api_service.dart';
 import '../services/database_service.dart';
-<<<<<<< Updated upstream
-=======
 import 'ReportScreen.dart'; 
 import 'ZonesScreen.dart';  
 import '../services/printer_service.dart'; // Import PrinterService
 import 'package:http/http.dart' as http;
->>>>>>> Stashed changes
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -38,11 +35,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   final ApiService _apiService = ApiService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final DatabaseService _databaseService = DatabaseService();
-<<<<<<< Updated upstream
-=======
   final PrinterService _printerService = PrinterService(); // PrinterService instance
   Timer? _continuousNotificationTimer;
->>>>>>> Stashed changes
   Timer? _timer;
   List<Order> _orders = [];
   bool _isLoading = true;
@@ -61,8 +55,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _startPeriodicFetch();
     _startContinuousNotifications();
   }
-<<<<<<< Updated upstream
-=======
   
   Future<void> _printOrder(Order order) async {
     try {
@@ -85,7 +77,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
       );
     }
   }
->>>>>>> Stashed changes
 
   Future<void> _initNotifications() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -251,7 +242,7 @@ Widget build(BuildContext context) {
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
-          onPressed: _fetchOrders, // Call _fetchOrders when reload button is pressed
+          onPressed: _fetchOrders,
         ),
         IconButton(
           icon: const Icon(Icons.logout),
@@ -260,10 +251,59 @@ Widget build(BuildContext context) {
       ],
     ),
     body: _buildBody(),
+    bottomNavigationBar: BottomNavigationBar(
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.analytics),
+          label: 'Report',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.map),
+          label: 'Zones',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.receipt),
+          label: 'Orders',
+        ),
+      ],
+      onTap: (int index) {
+        switch (index) {
+          case 0:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ReportScreen()),
+            );
+            break;
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ZonesScreen()),
+            );
+            break;
+          case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrdersScreen(
+              shopId: _shopId,
+              employeePhone: "wingsbox",
+              employeePin: "2go2hell",
+            ),
+          ),
+        );
+        break;
+    }
+      },
+      selectedItemColor: Colors.grey,
+      unselectedItemColor: Colors.grey,
+      showUnselectedLabels: true,
+    ),
   );
 }
 
 
+
+  @override
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -290,103 +330,7 @@ Widget build(BuildContext context) {
         child: Text('No orders found'),
       );
     }
-return RefreshIndicator(
-  onRefresh: _fetchOrders,
-  child: ListView.builder(
-    itemCount: _orders.length,
-    itemBuilder: (context, index) {
-      final order = _orders[index];
-      final isPrinted = _printStatus[order.orderId] ?? false;
 
-<<<<<<< Updated upstream
-      return Card(
-        color: isPrinted ? const Color(0xFF88C3CF) : Colors.orange[100], // Set to specified color for printed
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-            color: isPrinted ? Colors.blue : Colors.red,
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: InkWell(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/order-details',
-              arguments: order,
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.customerPhone,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          order.customerName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          order.email,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Total: €${order.total.toStringAsFixed(2)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'Address: ${order.customerAddress}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Delivery Charge: €${order.deliveryFee.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    Text(
-                      order.orderType, // Delivery type
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      );
-    },
-  ),
-);
-
-
-=======
     return RefreshIndicator(
       onRefresh: _fetchOrders,
       child: ListView.builder(
@@ -476,7 +420,7 @@ return RefreshIndicator(
             children: [
               Text(
                 'Order Type: ${order.orderType}', // Assuming 'deliveryOption' holds "Delivery" or "Collection"
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -548,7 +492,6 @@ return RefreshIndicator(
         },
       ),
     );
->>>>>>> Stashed changes
   }
 }
 
