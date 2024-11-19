@@ -17,6 +17,7 @@ class OrderDetailsScreen extends StatefulWidget {
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final ApiService _apiService = ApiService();
+  final DatabaseService _databaseService = DatabaseService();
 
   List<OrderDetail>? _orderDetails;
   bool _isLoading = true;
@@ -44,7 +45,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     }
   }
 
-  void _printReceipt() async {
+  Future<void> _printReceipt() async {
     const MethodChannel platform = MethodChannel('rawbt.intent.channel');
 
     if (_orderDetails == null) return;
@@ -99,12 +100,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Order #${widget.order.orderId}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.print),
-            onPressed: _printReceipt,
-          ),
-        ],
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
@@ -248,9 +243,55 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             ),
             const SizedBox(height: 16),
             Center(
-              child: Text(
-                'Thank you for your custom.',
-                style: TextStyle(fontStyle: FontStyle.italic),
+              child: Column(
+                children: [
+                  Text(
+                    'Thank you for your custom.',
+                    style: TextStyle(fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _printReceipt();
+                      // Fetch values from the local database
+                      final savedId = await _databaseService.getShopId();
+                      final savedPhone = await _databaseService.getEmployeePhone();
+                      final savedPin = await _databaseService.getEmployeePin();
+                      final orderId = widget.order.orderId; // Current order ID
+
+                      // Construct the API URL
+                      final apiUrl =
+                          'https://www.takeawayordering.com/appserver/appserver.php?tag=updateprintstatus'
+                          '&employee_phone=$savedPhone&employee_pin=$savedPin&shop_id=$savedId&order_id=$orderId';
+
+                      try {
+                        // Make the API call
+                        final response = await http.get(Uri.parse(apiUrl));
+
+                        if (response.statusCode == 200) {
+                          // Handle success
+                          print('Print successful: ${response.body}');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Print status updated successfully!')),
+                          );
+                        } else {
+                          // Handle failure
+                          print('Failed to update print status: ${response.body}');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to update print status.')),
+                          );
+                        }
+                      } catch (e) {
+                        // Handle error
+                        print('Error occurred while updating print status: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('An error occurred: $e')),
+                        );
+                      }
+                    },
+                    child: const Text('Print Receipt'),
+                  ),
+                ],
               ),
             ),
           ],

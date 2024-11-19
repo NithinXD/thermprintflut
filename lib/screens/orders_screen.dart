@@ -8,6 +8,13 @@ import 'dart:io';
 import '../models/order.dart';
 import '../services/api_service.dart';
 import '../services/database_service.dart';
+<<<<<<< Updated upstream
+=======
+import 'ReportScreen.dart'; 
+import 'ZonesScreen.dart';  
+import '../services/printer_service.dart'; // Import PrinterService
+import 'package:http/http.dart' as http;
+>>>>>>> Stashed changes
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -31,6 +38,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
   final ApiService _apiService = ApiService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final DatabaseService _databaseService = DatabaseService();
+<<<<<<< Updated upstream
+=======
+  final PrinterService _printerService = PrinterService(); // PrinterService instance
+  Timer? _continuousNotificationTimer;
+>>>>>>> Stashed changes
   Timer? _timer;
   List<Order> _orders = [];
   bool _isLoading = true;
@@ -39,6 +51,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String? _employeePhone;
   String? _employeePin;
   final Map<String, bool> _printStatus = {};
+  final Set<String> _notifiedOrders = {};
 
   @override
   void initState() {
@@ -46,7 +59,33 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _initNotifications();
     _initCredentials();
     _startPeriodicFetch();
+    _startContinuousNotifications();
   }
+<<<<<<< Updated upstream
+=======
+  
+  Future<void> _printOrder(Order order) async {
+    try {
+      setState(() {
+        _printStatus[order.orderId] = true; // Mark as printed optimistically
+      });
+
+      await _printerService.fetchAndPrintReceipt(order);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order #${order.orderId} sent to printer.')),
+      );
+    } catch (e) {
+      setState(() {
+        _printStatus[order.orderId] = false; // Revert status on failure
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to print order #${order.orderId}: $e')),
+      );
+    }
+  }
+>>>>>>> Stashed changes
 
   Future<void> _initNotifications() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -108,6 +147,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  void _startContinuousNotifications() {
+    _continuousNotificationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      for (var order in _orders) {
+        final isPrinted = _printStatus[order.orderId] ?? false;
+        if (!isPrinted) {
+          _playNotificationSound();
+          _showOrderNotification(order, isPrinted);
+        }
+      }
+    });
+  }
+
   Future<void> _fetchOrders() async {
     setState(() {
       _isLoading = true;
@@ -144,6 +195,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Future<void> _showOrderNotification(Order order, bool isPrinted) async {
+    if (_notifiedOrders.contains(order.orderId)) return;
+
     final notificationTitle = isPrinted
         ? 'New Order'
         : 'Unprinted Order #${order.orderId} is ready.';
@@ -162,11 +215,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ),
       ),
     );
+
+    _notifiedOrders.add(order.orderId);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _continuousNotificationTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -191,7 +247,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      title: Text(_employeePin != null ? 'Orders - $_employeePin' : 'Orders'),
+      title: Text(_employeePin != null ? 'Order Pad - $_employeePin' : 'Order Pad'),
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
@@ -242,6 +298,7 @@ return RefreshIndicator(
       final order = _orders[index];
       final isPrinted = _printStatus[order.orderId] ?? false;
 
+<<<<<<< Updated upstream
       return Card(
         color: isPrinted ? const Color(0xFF88C3CF) : Colors.orange[100], // Set to specified color for printed
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -329,5 +386,170 @@ return RefreshIndicator(
 );
 
 
+=======
+    return RefreshIndicator(
+      onRefresh: _fetchOrders,
+      child: ListView.builder(
+        itemCount: _orders.length,
+        itemBuilder: (context, index) {
+          final order = _orders[index];
+          final isPrinted = _printStatus[order.orderId] ?? false;
+
+          return Card(
+  color: isPrinted ? const Color(0xFF88C3CF) : Colors.orange[100], // Card color remains the same
+  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  shape: RoundedRectangleBorder(
+    side: BorderSide(
+      color: isPrinted ? Colors.blue : Colors.red,
+      width: 2,
+    ),
+    borderRadius: BorderRadius.circular(8),
+  ),
+  child: InkWell(
+    onTap: () {
+      Navigator.pushNamed(
+        context,
+        '/order-details',
+        arguments: order,
+      );
+    },
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.customerPhone,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    order.customerName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    order.email,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Total: €${order.total.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Address: ${order.customerAddress}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Delivery Charge: €${order.deliveryFee.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 14),
+              ),
+              Text(
+                order.paymentType, // Delivery type
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8), // Add spacing between rows
+          Row(
+            children: [
+              Text(
+                'Order Type: ${order.orderType}', // Assuming 'deliveryOption' holds "Delivery" or "Collection"
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+                    const SizedBox(height: 16), // Add spacing before the button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items to opposite ends
+            children: [
+              Text(
+                'Order ID: ${order.orderId}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isPrinted ? Colors.green : Colors.red,
+                ),
+                onPressed: () async {
+                  try {
+                    // Print the receipt
+                    await _printOrder(order);
+
+                    // Fetch saved credentials from the local database
+                    final savedId = await _databaseService.getShopId();
+                    final savedPhone = await _databaseService.getEmployeePhone();
+                    final savedPin = await _databaseService.getEmployeePin();
+                    final orderId = order.orderId; // Current order ID
+
+                    // Construct the API URL
+                    final apiUrl =
+                        'https://www.takeawayordering.com/appserver/appserver.php?tag=updateprintstatus'
+                        '&employee_phone=$savedPhone&employee_pin=$savedPin&shop_id=$savedId&order_id=$orderId';
+
+                    // Make the API call to update the print status
+                    final response = await http.get(Uri.parse(apiUrl));
+
+                    if (response.statusCode == 200) {
+                      // Success: Print status updated
+                      print('Print status updated successfully: ${response.body}');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Print status updated successfully!')),
+                      );
+                      setState(() {
+                        _printStatus[order.orderId] = true; // Mark order as printed
+                      });
+                    } else {
+                      // Failure: Handle API failure
+                      print('Failed to update print status: ${response.body}');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Failed to update print status.')),
+                      );
+                    }
+                  } catch (e) {
+                    // Error: Handle network or API errors
+                    print('Error occurred while updating print status: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('An error occurred: $e')),
+                    );
+                  }
+                },
+                child: const Text('Print Receipt'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+
+        },
+      ),
+    );
+>>>>>>> Stashed changes
   }
 }
+
+

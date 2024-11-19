@@ -13,9 +13,12 @@ final ApiService _apiService = ApiService(); // Initialize ApiService
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     await checkForOrdersAndNotify();
+    // Simulate continuous execution
+    Future.delayed(const Duration(seconds: 2), () => checkForOrdersAndNotify());
     return Future.value(true);
   });
 }
+
 
 Future<void> checkForOrdersAndNotify() async {
   // Fetch orders from ApiService

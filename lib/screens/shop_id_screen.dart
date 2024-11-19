@@ -143,13 +143,13 @@ class _ShopIdScreenState extends State<ShopIdScreen> {
                     TextFormField(
                       controller: _phoneNumberController,
                       decoration: const InputDecoration(
-                        labelText: 'Phone Number',
+                        labelText: 'Password',
                         border: OutlineInputBorder(),
-                        hintText: 'Enter your Phone Number',
+                        hintText: 'Enter your Password',
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter a Phone Number';
+                          return 'Please enter your Password';
                         }
                         return null;
                       },

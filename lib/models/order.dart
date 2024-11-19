@@ -61,6 +61,10 @@ class Order {
       shopAddress: '${json['housenameno']}, ${json['area']}, ${json['city']}, ${json['postcode']}, ${json['state']}, ${json['country']}',
       shopTelephone: json['telephone'] ?? '',
       paymentType: json['od_payment_type'] ?? '',
+<<<<<<< Updated upstream
+=======
+      discount: double.tryParse(json['pd_discount_amount'] ?? '0') ?? 0.0,
+>>>>>>> Stashed changes
     );
   }
 }
