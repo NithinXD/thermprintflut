@@ -123,6 +123,30 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
   }
 
+  Future<void> sendNotification() async {
+    const AndroidNotificationDetails androidNotificationDetails =
+        AndroidNotificationDetails(
+      'unprinted_orders_channel', // Unique channel ID
+      'Unprinted Orders', // Channel name
+      channelDescription: 'Notifications for unprinted orders reminder', // Channel description
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'Unprinted orders need your attention!',
+      ongoing: true, // Makes the notification non-dismissible
+    );
+
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidNotificationDetails);
+
+    final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000; // Unique ID based on timestamp
+    await flutterLocalNotificationsPlugin.show(
+      notificationId, // Unique Notification ID
+      'Unprinted Orders', // Notification title
+      'Unprinted orders: Print now', // Notification body
+      notificationDetails,
+    );
+  }
+
   Future<void> _playNotificationSound() async {
     try {
       final byteData = await rootBundle.load('assets/sounds/beep.mp3');
@@ -139,76 +163,93 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void _startContinuousNotifications() {
-    _continuousNotificationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      for (var order in _orders) {
-        final isPrinted = _printStatus[order.orderId] ?? false;
-        if (!isPrinted) {
-          _playNotificationSound();
-          _showOrderNotification(order, isPrinted);
-        }
+  _continuousNotificationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    bool hasUnprintedOrders = false;
+
+    for (var order in _orders) {
+      final isPrinted = _printStatus[order.orderId] ?? false;
+
+      if (!isPrinted) {
+        hasUnprintedOrders = true;
+
+        // Play notification sound and show notification
+        _showOrderNotification(order);
       }
-    });
-  }
+    }
+
+    // Play the beep sound if there are unprinted orders
+    if (hasUnprintedOrders) {
+      sendNotification();
+      _playNotificationSound();
+
+    }
+  });
+}
+
 
   Future<void> _fetchOrders() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  setState(() {
+    _isLoading = true;
+    _error = null;
+  });
 
-    try {
-      final response = await _apiService.fetchOrders();
+  try {
+    final response = await _apiService.fetchOrders();
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      final newOrders = response.orders.values.toList();
+    final newOrders = response.orders.values.toList();
+    _notifiedOrders.clear(); // Clear notified orders for the new fetch
 
-      for (var order in newOrders) {
-        final isPrinted = order.orderPrinted != "0";
-        _printStatus[order.orderId] = isPrinted;
+    for (var order in newOrders) {
+      final isPrinted = order.orderPrinted != "0";
+      _printStatus[order.orderId] = isPrinted;
 
-        if (!isPrinted) {
-          await _playNotificationSound();
-          _showOrderNotification(order, isPrinted);
-        }
+      if (!isPrinted) {
+        // Add unprinted orders to notified set to track
+        _notifiedOrders.add(order.orderId);
       }
-
-      setState(() {
-        _orders = newOrders;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to fetch orders: $e';
-        _isLoading = false;
-      });
     }
-  }
 
-  Future<void> _showOrderNotification(Order order, bool isPrinted) async {
+    setState(() {
+      _orders = newOrders;
+      _isLoading = false;
+    });
+  } catch (e) {
+    setState(() {
+      _error = 'Failed to fetch orders: $e';
+      _isLoading = false;
+    });
+  }
+}
+
+
+  Future<void> _showOrderNotification(Order order) async {
     if (_notifiedOrders.contains(order.orderId)) return;
 
-    final notificationTitle = isPrinted
-        ? 'New Order'
-        : 'Unprinted Order #${order.orderId} is ready.';
+    final notificationTitle = 'Unprinted Order';
+    final notificationBody = 'Order #${order.orderId} is waiting to be printed.';
 
     await flutterLocalNotificationsPlugin.show(
       order.orderId.hashCode,
       notificationTitle,
-      'Order #${order.orderId} is ready.',
+      notificationBody,
       NotificationDetails(
         android: AndroidNotificationDetails(
           'order_channel',
           'Order Notifications',
-          channelDescription: 'Notifications for new orders',
+          channelDescription: 'Notifications for unprinted orders',
           importance: Importance.high,
           priority: Priority.high,
         ),
       ),
     );
 
+    // Add the order to the notified set
     _notifiedOrders.add(order.orderId);
   }
+
+
 
   @override
   void dispose() {
@@ -483,7 +524,9 @@ Widget build(BuildContext context) {
               ),
             ],
           ),
-        ],
+            ],
+          
+        
       ),
     ),
   ),

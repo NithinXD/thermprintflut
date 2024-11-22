@@ -13,12 +13,9 @@ final ApiService _apiService = ApiService(); // Initialize ApiService
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     await checkForOrdersAndNotify();
-    // Simulate continuous execution
-    Future.delayed(const Duration(seconds: 2), () => checkForOrdersAndNotify());
     return Future.value(true);
   });
 }
-
 
 Future<void> checkForOrdersAndNotify() async {
   // Fetch orders from ApiService
@@ -67,6 +64,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false, // Disables the debug banner
       title: 'Flutter Bill',
       theme: ThemeData(
         primarySwatch: Colors.blue,

@@ -85,7 +85,7 @@ class _ReportScreenState extends State<ReportScreen> {
             };
           });
         }
-
+        print(data);
         // Process other report data
         if (data['success'] == 1 || data['success'] == -4) {
           setState(() {
@@ -95,9 +95,10 @@ class _ReportScreenState extends State<ReportScreen> {
               'collectionOrders': data['collection'] ?? 0,
               'deliveryOrders': data['delivery'] ?? 0,
               'totalOrders': data['totalorders'] ?? 0,
-              'cashBusiness': data['cashbusiness '] ?? 0.0,
-              'cardBusiness': data['cardbusiness '] ?? 0.0,
-              'totalBusiness': data['totalbusiness '] ?? 0.0,
+              'cashbusiness': data['cashbusiness'] ?? 0.0,
+              'cardbusiness': data['cardbusiness'] ?? 0.0,
+              'totalbusiness': data['totalbusiness'] ?? 0.0,
+              'totaldiscount': data['totaldiscount'] ?? 0.0,
               'cashDeliveryCharge': data['cashdeliverycharge'] ?? 0.0,
               'cardDeliveryCharge': data['carddeliverycharge'] ?? 0.0,
               'totalDeliveryCharge': data['totaldeliverycharge'] ?? 0.0,
@@ -106,7 +107,8 @@ class _ReportScreenState extends State<ReportScreen> {
             // Add order details
             _reportDetails = data['reportdetails'] ?? {};
           });
-        } else {
+        }
+ else {
           _logWarning('No report data available for this date.');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No report data available for this date.')),
@@ -223,16 +225,21 @@ class _ReportScreenState extends State<ReportScreen> {
     receipt += '--------------------------------\n';
     receipt += 'Cash Orders: ${_reportData['cashOrders']}\n';
     receipt += 'Card Orders: ${_reportData['cardOrders']}\n';
+    receipt += 'Collection Orders: ${_reportData['collectionOrders']}\n';
+    receipt += 'Delivery Orders: ${_reportData['deliveryOrders']}\n';
     receipt += 'Total Orders: ${_reportData['totalOrders']}\n';
     receipt += '--------------------------------\n';
-
-    // Business Summary
-    receipt += 'BUSINESS SUMMARY:\n';
-    receipt += '--------------------------------\n';
-    receipt += 'Cash Business: €${_convertToDouble(_reportData['cashBusiness']).toStringAsFixed(2)}\n';
-    receipt += 'Card Business: €${_convertToDouble(_reportData['cardBusiness']).toStringAsFixed(2)}\n';
-    receipt += 'Total Business: €${_convertToDouble(_reportData['totalBusiness']).toStringAsFixed(2)}\n';
-    receipt += '--------------------------------\n';
+    
+// Business Summary
+receipt += 'BUSINESS SUMMARY:\n';
+receipt += '--------------------------------\n';
+receipt += 'Cash Business: €${_convertToDouble(_reportData['cashbusiness']).toStringAsFixed(2)}\n';
+receipt += 'Card Business: €${_convertToDouble(_reportData['cardbusiness']).toStringAsFixed(2)}\n';
+receipt += 'Total Business: €${_convertToDouble(_reportData['totalbusiness']).toStringAsFixed(2)}\n';
+receipt += 'Total Discount: €${_convertToDouble(_reportData['totaldiscount']).toStringAsFixed(2)}\n';
+receipt += 'Total Delivery Charge: €${_convertToDouble(_reportData['totalDeliveryCharge']).toStringAsFixed(2)}\n';
+receipt += 'Gross Total Business: €${(_convertToDouble(_reportData['totalbusiness']) + _convertToDouble(_reportData['totalDeliveryCharge']) - _convertToDouble(_reportData['totaldiscount'])).toStringAsFixed(2)}\n';
+receipt += '--------------------------------\n';
 
     // Delivery Charges
     receipt += 'DELIVERY CHARGES:\n';
@@ -360,13 +367,18 @@ class _ReportScreenState extends State<ReportScreen> {
             },
           ),
           _buildSectionCard(
-            'Business Summary',
-            {
-              'Total Cash Business': "€${_convertToDouble(_reportData['cashBusiness']).toStringAsFixed(2)}",
-              'Total Card Business': "€${_convertToDouble(_reportData['cardBusiness']).toStringAsFixed(2)}",
-              'Total Business': "€${_convertToDouble(_reportData['totalBusiness']).toStringAsFixed(2)}",
-            },
-          ),
+  'Business Summary',
+  {
+    'Total Cash Business': "€${_convertToDouble(_reportData['cashbusiness']).toStringAsFixed(2)}",
+    'Total Card Business': "€${_convertToDouble(_reportData['cardbusiness']).toStringAsFixed(2)}",
+    'Total Business': "€${_convertToDouble(_reportData['totalbusiness']).toStringAsFixed(2)}",
+    'Total Discount': "€${_convertToDouble(_reportData['totaldiscount']).toStringAsFixed(2)}",
+    'Total Delivery Charge': "€${_convertToDouble(_reportData['totalDeliveryCharge']).toStringAsFixed(2)}",
+    'Gross Total Business': "€${(_convertToDouble(_reportData['totalbusiness']) + _convertToDouble(_reportData['totalDeliveryCharge']) - _convertToDouble(_reportData['totaldiscount'])).toStringAsFixed(2)}",
+  },
+),
+
+
           _buildSectionCard(
             'Delivery Charges Summary',
             {
